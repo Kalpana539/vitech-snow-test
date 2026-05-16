@@ -111,9 +111,3 @@ delete from etl.public.orders_c2 ;
  create or replace database   our_first_dbcopy 
        clone   our_first_db  ;
 
-
-
-   drop database     our_first_dbcopy;
-
-   undrop database our_first_dbcopy ;
-        
