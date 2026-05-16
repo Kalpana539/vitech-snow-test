@@ -1,0 +1,5 @@
+hii
+
+
+select 
+* from emp  ;
