@@ -100,8 +100,6 @@ delete from orders where profit < 100 ;
   create or replace table etl.public.orders_c1    
         clone  OUR_FIRST_DB.PUBLIC.ORDERS ;
 
-
-
   create or replace table etl.public.orders_c2    
         clone  OUR_FIRST_DB.PUBLIC.ORDERS ;
 
