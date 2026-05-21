@@ -1,0 +1,32 @@
+
+USE DATABASE VITECH;
+USE SCHEMA PUBLIC;
+
+CREATE OR REPLACE FUNCTION get_date(business_date timestamp)
+RETURNS DATE
+LANGUAGE SQL
+AS
+$$
+TO_DATE(SUBSTR(TO_CHAR(business_date),1,10))
+$$;
+
+SELECT get_date('2024-01-01 12:53:22.000');
+
+CREATE OR REPLACE TABLE SALES(
+  sale_datetime TIMESTAMP,
+  sale_amount NUMBER(19,4)
+);
+
+INSERT INTO SALES VALUES
+('2023-01-01 12:53:22.000','2876.93'),
+('2023-01-02 01:14:55.000','3509.75'),
+('2023-01-03 01:05:12.000','2971.66'),
+('2023-01-04 12:47:49.000','3328.32');
+
+SELECT
+  get_date(sale_datetime) AS sale_date,
+  sale_amount
+FROM SALES;
+
+SELECT * FROM sales
+WHERE get_date(sale_datetime) > '2023-01-02';
