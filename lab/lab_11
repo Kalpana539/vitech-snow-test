@@ -1,0 +1,184 @@
+
+CREATE OR REPLACE STAGE OUR_FIRST_DB.PUBLIC.orders_ext_stage 
+    URL = 's3://snowflakebucket-copyoption/returnfailed/'
+    FILE_FORMAT = (TYPE = 'CSV' SKIP_HEADER = 1);
+
+list @OUR_FIRST_DB.PUBLIC.orders_ext_stage ;
+
+
+   CREATE OR REPLACE TABLE OUR_FIRST_DB.PUBLIC.ORDERS_v10 (
+    ORDER_ID VARCHAR(30),
+    AMOUNT INT,
+    PROFIT INT,
+    QUANTITY INT,
+    CATEGORY VARCHAR(30),
+    SUBCATEGORY VARCHAR(30));
+
+ COPY INTO OUR_FIRST_DB.PUBLIC.ORDERS_v10  
+ FROM @OUR_FIRST_DB.PUBLIC.orders_ext_stage 
+ VALIDATION_mODE=RETURN_ERRORS;
+
+
+ SELECT * FROM OUR_FIRST_DB.PUBLIC.ORDERS_v10 ;
+
+
+ DELETE FROM OUR_FIRST_DB.PUBLIC.ORDERS_v10 ;
+
+
+  COPY INTO OUR_FIRST_DB.PUBLIC.ORDERS_v10  
+ FROM @OUR_FIRST_DB.PUBLIC.orders_ext_stage 
+ON_ERROR = CONTINUE;
+
+C--------
+
+
+SELECT REJECTED_RECORD FROM OUR_FIRST_DB.PUBLIC.ORDERS_ERRORS;
+
+
+SELECT
+  SPLIT_PART(REJECTED_RECORD, ',', 1) AS ORDER_ID,
+  SPLIT_PART(REJECTED_RECORD, ',', 2) AS AMOUNT,
+  SPLIT_PART(REJECTED_RECORD, ',', 3) AS PROFIT,
+  SPLIT_PART(REJECTED_RECORD, ',', 4) AS QUANTITY,
+  SPLIT_PART(REJECTED_RECORD, ',', 5) AS CATEGORY,
+  SPLIT_PART(REJECTED_RECORD, ',', 6) AS SUBCATEGORY
+FROM OUR_FIRST_DB.PUBLIC.ORDERS_ERRORS;
+
+SELECT REJECTED_RECORD FROM OUR_FIRST_DB.PUBLIC.ORDERS_ERRORS;
+
+CREATE TABLE   ORDER_ERR_RECORDS AS 
+(
+ SELECT
+  SPLIT_PART(REJECTED_RECORD, ',', 1) AS ORDER_ID,
+  SPLIT_PART(REJECTED_RECORD, ',', 2) AS AMOUNT,
+  SPLIT_PART(REJECTED_RECORD, ',', 3) AS PROFIT,
+  SPLIT_PART(REJECTED_RECORD, ',', 4) AS QUANTITY,
+  SPLIT_PART(REJECTED_RECORD, ',', 5) AS CATEGORY,
+  SPLIT_PART(REJECTED_RECORD, ',', 6) AS SUBCATEGORY
+FROM OUR_FIRST_DB.PUBLIC.ORDERS_ERRORS
+);
+
+SELECT * FROM ORDER_ERR_RECORDS ;
+
+
+
+
+SELECT OBJECT_CONSTRUCT(*)  FROM ORDER_ERR_RECORDS ;
+
+-------------------------------------------------------
+
+CREATE SCHEMA EXTERNAL_STAGES;
+
+
+CREATE OR REPLACE stage OUR_FIRST_DB.EXTERNAL_STAGES.JSONSTAGE
+     url='s3://bucketsnowflake-jsondemo'
+     FILE_FORMAT = (TYPE =JSON) ;
+
+
+LIST @OUR_FIRST_DB.EXTERNAL_STAGES.JSONSTAGE ;
+
+
+CREATE OR REPLACE  TABLE   OUR_FIRST_DB.PUBLIC.RAW_JSON  ( RAW_FILE   VARIANT ) ;
+
+
+SELECT * FROM OUR_FIRST_DB.PUBLIC.RAW_JSON ;
+
+COPY INTO OUR_FIRST_DB.PUBLIC.RAW_JSON  
+FROM @OUR_FIRST_DB.EXTERNAL_STAGES.JSONSTAGE ;
+
+
+{
+  "city": "Bakersfield",
+  "first_name": "Portia",
+  "gender": "Male",
+  "id": 1,
+  "job": {
+    "salary": 32000,
+    "title": "Financial Analyst"
+  },
+  "last_name": "Gioani",
+  "prev_company": [],
+  "spoken_languages": [
+    {
+      "language": "Kazakh",
+      "level": "Advanced"
+    },
+    {
+      "language": "Lao",
+      "level": "Basic"
+    }
+  ]
+}
+
+SELECT $1:city,
+       $1:first_name,
+       $1:id
+FROM OUR_FIRST_DB.PUBLIC.RAW_JSON ;
+
+
+
+SELECT RAW_FILE:city,
+       RAW_FILE:first_name,
+       RAW_FILE:id,
+       RAW_FILE:job.salary,
+      RAW_FILE:job.title
+FROM OUR_FIRST_DB.PUBLIC.RAW_JSON ;
+
+
+SELECT RAW_FILE:city :: string as city,
+       RAW_FILE:first_name :: string as name,
+       RAW_FILE:id :: int as id,
+       RAW_FILE:job.salary :: decimal(10,2) as salary,
+      RAW_FILE:job.title :: string as desgination
+FROM OUR_FIRST_DB.PUBLIC.RAW_JSON ;
+
+
+
+
+
+create table hr_data as 
+(
+  SELECT RAW_FILE:city :: string as city,
+       RAW_FILE:first_name :: string as name,
+       RAW_FILE:id :: int as id,
+       RAW_FILE:job.salary :: decimal(10,2) as salary,
+      RAW_FILE:job.title :: string as desgination
+FROM OUR_FIRST_DB.PUBLIC.RAW_JSON 
+)
+
+
+select * from hr_data;
+
+
+SELECT 
+       RAW_FILE:id,
+       RAW_FILE:first_name,
+       raw_file:spoken_languages[0].language,
+       raw_file:spoken_languages[0].level,
+        raw_file:spoken_languages[1].language,
+       raw_file:spoken_languages[1].level,
+         raw_file:spoken_languages[2].language,
+       raw_file:spoken_languages[2].level
+FROM OUR_FIRST_DB.PUBLIC.RAW_JSON ;
+
+
+
+SELECT 
+       RAW_FILE:id AS id,
+       RAW_FILE:first_name::STRING AS first_name,
+       f.value:language::STRING AS language,
+       f.value:level::STRING AS level
+FROM OUR_FIRST_DB.PUBLIC.RAW_JSON,
+LATERAL FLATTEN(input => RAW_FILE:spoken_languages) f;
+
+
+SELECT 
+       RAW_FILE:id,
+       RAW_FILE:first_name,
+       raw_file:spoken_languages[0].language,
+       raw_file:spoken_languages[0].level,
+        raw_file:spoken_languages[1].language,
+       raw_file:spoken_languages[1].level,
+         raw_file:spoken_languages[2].language,
+       raw_file:spoken_languages[2].level
+FROM OUR_FIRST_DB.PUBLIC.RAW_JSON ;
