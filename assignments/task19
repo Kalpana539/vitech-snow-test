@@ -1,0 +1,145 @@
+
+
+
+
+
+CREATE OR REPLACE TABLE CUSTOMER(
+  CID INT,
+  CNAME VARCHAR(100),
+  AMOUNT NUMBER(19,4),
+  ADDRESS VARCHAR(255),
+  PHONE VARCHAR(20),
+  CREATE_TIME TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+  UPDATE_TIME TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+);
+
+CREATE OR REPLACE PROCEDURE insert_customer(
+  p_cid INT,
+  p_cname VARCHAR,
+  p_amount NUMBER,
+  p_address VARCHAR,
+  p_phone VARCHAR
+)
+RETURNS STRING
+LANGUAGE SQL
+AS
+$$
+BEGIN
+  INSERT INTO CUSTOMER(CID, CNAME, AMOUNT, ADDRESS, PHONE, CREATE_TIME, UPDATE_TIME)
+  VALUES (:p_cid, :p_cname, :p_amount, :p_address, :p_phone, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP());
+  RETURN 'Customer inserted successfully';
+END;
+$$;
+
+CALL insert_customer(1, 'John', 5000.00, 'New York', '9876543210');
+
+SELECT * FROM CUSTOMER;
+
+CREATE OR REPLACE PROCEDURE withdraw(p_cid INT, p_withdraw_amount NUMBER)
+RETURNS STRING
+LANGUAGE SQL
+AS
+$$
+DECLARE
+  v_balance NUMBER;
+BEGIN
+  SELECT AMOUNT INTO :v_balance FROM CUSTOMER WHERE CID = :p_cid;
+  IF (v_balance IS NULL) THEN
+    RETURN 'Account not found';
+  ELSEIF (v_balance < :p_withdraw_amount) THEN
+    RETURN 'Insufficient balance. Available: ' || :v_balance;
+  ELSE
+    UPDATE CUSTOMER
+    SET AMOUNT = AMOUNT - :p_withdraw_amount, UPDATE_TIME = CURRENT_TIMESTAMP()
+    WHERE CID = :p_cid;
+    RETURN 'Withdrawal successful. New balance: ' || (:v_balance - :p_withdraw_amount);
+  END IF;
+END;
+$$;
+
+CALL withdraw(1, 1000);
+
+CREATE OR REPLACE PROCEDURE deposit(p_cid INT, p_deposit_amount NUMBER)
+RETURNS STRING
+LANGUAGE SQL
+AS
+$$
+DECLARE
+  v_balance NUMBER;
+BEGIN
+  SELECT AMOUNT INTO :v_balance FROM CUSTOMER WHERE CID = :p_cid;
+  IF (v_balance IS NULL) THEN
+    RETURN 'Account not found';
+  ELSE
+    UPDATE CUSTOMER
+    SET AMOUNT = AMOUNT + :p_deposit_amount, UPDATE_TIME = CURRENT_TIMESTAMP()
+    WHERE CID = :p_cid;
+    RETURN 'Deposit successful. New balance: ' || (:v_balance + :p_deposit_amount);
+  END IF;
+END;
+$$;
+
+CALL deposit(1, 1000);
+
+CREATE OR REPLACE PROCEDURE get_customers_by_branch(p_address VARCHAR)
+RETURNS TABLE(CID INT, CNAME VARCHAR, AMOUNT NUMBER, ADDRESS VARCHAR, PHONE VARCHAR)
+LANGUAGE SQL
+AS
+$$
+DECLARE
+  res RESULTSET;
+BEGIN
+  res := (SELECT CID, CNAME, AMOUNT, ADDRESS, PHONE FROM CUSTOMER WHERE ADDRESS ILIKE :p_address);
+  RETURN TABLE(res);
+END;
+$$;
+
+CALL get_customers_by_branch('blr');
+
+CREATE OR REPLACE PROCEDURE delete_inactive_customer(p_cid INT)
+RETURNS STRING
+LANGUAGE SQL
+AS
+$$
+DECLARE
+  v_amount NUMBER;
+BEGIN
+  SELECT AMOUNT INTO :v_amount FROM CUSTOMER WHERE CID = :p_cid;
+  IF (v_amount IS NULL) THEN
+    RETURN 'Account not found';
+  ELSEIF (v_amount = 0) THEN
+    DELETE FROM CUSTOMER WHERE CID = :p_cid;
+    RETURN 'Inactive customer ' || :p_cid || ' deleted successfully';
+  ELSE
+    RETURN 'Customer ' || :p_cid || ' is active (balance: ' || :v_amount || '). Cannot delete.';
+  END IF;
+END;
+$$;
+
+CALL delete_inactive_customer(1);
+
+CREATE OR REPLACE PROCEDURE mini_statement(p_cid INT)
+RETURNS STRING
+LANGUAGE SQL
+AS
+$$
+DECLARE
+  v_cname VARCHAR;
+  v_amount NUMBER;
+  v_address VARCHAR;
+  v_phone VARCHAR;
+BEGIN
+  SELECT CNAME, AMOUNT, ADDRESS, PHONE
+  INTO :v_cname, :v_amount, :v_address, :v_phone
+  FROM CUSTOMER WHERE CID = :p_cid;
+  IF (v_cname IS NULL) THEN
+    RETURN 'Account not found';
+  ELSE
+    RETURN 'Account No: ' || :p_cid || ' | Name: ' || :v_cname || ' | Balance: ' || :v_amount || ' | Address: ' || :v_address || ' | Phone: ' || :v_phone;
+  END IF;
+END;
+$$;
+
+CALL mini_statement(1);
+
+
